@@ -19,11 +19,15 @@ from dolfinx.fem.petsc import assemble_matrix
 
 class LK_hamiltonian_4band:
 
-    def __init__(self,device,phi,chi, Eg, gamma1, gamma2, gamma3,delta):
+    def __init__(self,device,phi,chi, Eg, gamma1, gamma2, gamma3,delta,kappa, BField,B):
         self.domain = device
         self.gamma1 = gamma1
         self.gamma2 = gamma2
         self.gamma3 = gamma3
+        self.kappa = kappa
+
+        self.Bfield = BField
+        self.B = B
 
         # Rearragning the mesh to nm for easy solving 
         self.domain.geometry.x[:] *= 1e9  # Convert m to nm
@@ -160,6 +164,67 @@ class LK_hamiltonian_4band:
             H44 = H44 - self.Ev_cal * ufl.inner(u4, v4) * self.dx
 
 
+        if self.Bfield:
+            
+            print(f"Setting Magnetic Field: Bx={self.B[0]}, By={self.B[1]}, Bz={self.B[2]} ")
+            Bx = self.B[0]
+            By = self.B[1]
+            Bz = self.B[2]
+
+            muB = 0.00005788
+            # Bx 
+            H13 = H13 - muB*Bx*math.sqrt(3)*self.kappa* ufl.inner(u1, v3) * self.dx
+            H24 = H24 + muB*Bx*math.sqrt(3)*self.kappa* ufl.inner(u2, v4) * self.dx
+            H31 = H31 - muB*Bx*math.sqrt(3)*self.kappa* ufl.inner(u3, v1) * self.dx
+            #H34 = H34 - muB*Bx*2*self.kappa* ufl.inner(u3, v4) * self.dx
+            H42 = H42 + muB*Bx*math.sqrt(3)*self.kappa* ufl.inner(u4, v2) * self.dx
+            #H43 = H43 - muB*Bx*2*self.kappa* ufl.inner(u4, v3) * self.dx
+            
+            # By 
+            H13 = H13 - 1j*muB*By*math.sqrt(3)*self.kappa* ufl.inner(u1, v3) * self.dx
+            H24 = H24 + 1j*muB*By*math.sqrt(3)*self.kappa* ufl.inner(u2, v4) * self.dx
+            H31 = H31 - (-1j)*muB*By*math.sqrt(3)*self.kappa* ufl.inner(u3, v1) * self.dx
+            #H34 = H34 - 1j*muB*By*2*self.kappa* ufl.inner(u3, v4) * self.dx
+            H42 = H42 + (-1j)*muB*By*math.sqrt(3)*self.kappa* ufl.inner(u4, v2) * self.dx
+            #H43 = H43 - (-1j)*muB*By*2*self.kappa* ufl.inner(u4, v3) * self.dx
+
+            
+            # Bz 
+            H11 = H11 - 3*muB*Bz*self.kappa* ufl.inner(u1, v1) * self.dx
+            H22 = H22 + 3*muB*Bz*self.kappa* ufl.inner(u2, v2) * self.dx
+            H33 = H33 + muB*Bz*self.kappa* ufl.inner(u3, v3) * self.dx
+            H44 = H44 - muB*Bz*self.kappa* ufl.inner(u4, v4) * self.dx
+
+        if self.Bfield:
+            
+            print(f"Setting Magnetic Field: Bx={self.B[0]}, By={self.B[1]}, Bz={self.B[2]} ")
+            Bx = self.B[0]
+            By = self.B[1]
+            Bz = self.B[2]
+
+            muB = 0.00005788
+            # Bx 
+            H13 = H13 - muB*Bx*math.sqrt(3)*self.kappa* ufl.inner(u1, v3) * self.dx
+            H24 = H24 + muB*Bx*math.sqrt(3)*self.kappa* ufl.inner(u2, v4) * self.dx
+            H31 = H31 - muB*Bx*math.sqrt(3)*self.kappa* ufl.inner(u3, v1) * self.dx
+            #H34 = H34 - muB*Bx*2*self.kappa* ufl.inner(u3, v4) * self.dx
+            H42 = H42 + muB*Bx*math.sqrt(3)*self.kappa* ufl.inner(u4, v2) * self.dx
+            #H43 = H43 - muB*Bx*2*self.kappa* ufl.inner(u4, v3) * self.dx
+            
+            # By 
+            H13 = H13 - 1j*muB*By*math.sqrt(3)*self.kappa* ufl.inner(u1, v3) * self.dx
+            H24 = H24 + 1j*muB*By*math.sqrt(3)*self.kappa* ufl.inner(u2, v4) * self.dx
+            H31 = H31 - (-1j)*muB*By*math.sqrt(3)*self.kappa* ufl.inner(u3, v1) * self.dx
+            #H34 = H34 - 1j*muB*By*2*self.kappa* ufl.inner(u3, v4) * self.dx
+            H42 = H42 + (-1j)*muB*By*math.sqrt(3)*self.kappa* ufl.inner(u4, v2) * self.dx
+            #H43 = H43 - (-1j)*muB*By*2*self.kappa* ufl.inner(u4, v3) * self.dx
+
+            
+            # Bz 
+            H11 = H11 - 3*muB*Bz*self.kappa* ufl.inner(u1, v1) * self.dx
+            H22 = H22 + 3*muB*Bz*self.kappa* ufl.inner(u2, v2) * self.dx
+            H33 = H33 + muB*Bz*self.kappa* ufl.inner(u3, v3) * self.dx
+            H44 = H44 - muB*Bz*self.kappa* ufl.inner(u4, v4) * self.dx
 
         # NO band edge potential - kinetic energy only
         a = (H11 +  H13 + H14+
@@ -308,7 +373,7 @@ class LK_hamiltonian_4band:
 
             rel  = eps.computeError(i, SLEPc.EPS.ErrorType.RELATIVE)
             absr = eps.computeError(i, SLEPc.EPS.ErrorType.ABSOLUTE)
-            print(f"i={i}  E={eigenval:.6e}  rel={rel:.3e}  abs={absr:.3e}")
+            print(f"i={i}  E={eigenval*-1:.6e}  rel={rel:.3e}  abs={absr:.3e}")
 
             # Create a NEW Function each iteration — reusing the same object
             # means all entries in eigenvectors point to the same data
@@ -359,9 +424,7 @@ class LK_hamiltonian_4band:
             vals = psi.x.array[dof_map]
 
             prob      = np.abs(vals)**2
-            real_part = np.real(vals)
-            imag_part = np.imag(vals)
-
+ 
             print(f"  {name}: maxsi={prob.max():.3e}")
             grid.point_data[f"{name}_abs2"] = prob
 
