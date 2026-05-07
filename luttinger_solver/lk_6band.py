@@ -90,6 +90,7 @@ class LK_hamiltonian_6band:
         self.region_map = getattr(self.device, "submesh_region_map", {})
 
         self.Bfield = False
+        self.B = [0.0,0.0,0.0]
 
         self.strain = False
 
@@ -199,23 +200,56 @@ class LK_hamiltonian_6band:
 
         self._msg(f"[LK6] Applied strain to region '{region_name}'")
 
+    def A_vec(self):
+        Bx, By, Bz = self.B
+        x = ufl.SpatialCoordinate(self.domain)
+
+        X = x[0]
+        Y = x[1]
+        Z = x[2]
+
+        # Symmetric gauge: A = 1/2 B x r
+        Ax = 0.5 * (By * Z - Bz * Y)
+        Ay = 0.5 * (Bz * X - Bx * Z)
+        Az = 0.5 * (Bx * Y - By * X)
+
+        return [Ax, Ay, Az]
+
+
+    def grad_B(self,u,i):
+        if not self.Bfield or not getattr(self, "include_orbital", False):
+            return PETSc.ScalarType(-1j) * ufl.grad(u)[i]
+        
+        A = self.A_vec()
+
+        alpha = PETSc.ScalarType(self.orbital_sign * 1.519e-3)
+
+        return (
+            PETSc.ScalarType(-1j) * ufl.grad(u)[i]
+            + alpha * A[i] * u
+        )
+
+
+
     def sym_d(self, u, v, i, j):
-        return 0.5 * (ufl.inner(ufl.grad(u)[i] , ufl.grad(v)[j]) +
-                       ufl.inner(ufl.grad(u)[j], ufl.grad(v)[i]))
+        return 0.5 * (
+            ufl.inner(self.grad_B(u,i), self.grad_B(v,j))
+            + ufl.inner(self.grad_B(u,j), self.grad_B(v,i))
+        )
 
     def P_operator(self, u, v):
-        return self.h2m * self.gamma1 * (ufl.inner(ufl.grad(u)[0] , ufl.grad(v)[0])  + ufl.inner(ufl.grad(u)[1] , ufl.grad(v)[1])  + ufl.inner(ufl.grad(u)[2] , ufl.grad(v)[2]))
+        return self.h2m * self.gamma1 * (ufl.inner(self.grad_B(u,0) , self.grad_B(v,0))  + ufl.inner(self.grad_B(u,1) , self.grad_B(v,1))  + ufl.inner(self.grad_B(u,2) , self.grad_B(v,2)))
 
     def Q_operator(self, u, v):
-        return self.h2m * self.gamma2 * (ufl.inner(ufl.grad(u)[0] , ufl.grad(v)[0]) + ufl.inner(ufl.grad(u)[1] , ufl.grad(v)[1]) - 2 * ufl.inner(ufl.grad(u)[2] , ufl.grad(v)[2])) 
+        return self.h2m * self.gamma2 * (ufl.inner(self.grad_B(u,0) , self.grad_B(v,0)) + ufl.inner(self.grad_B(u,1) , self.grad_B(v,1)) - 2 * ufl.inner(self.grad_B(u,2) , self.grad_B(v,2))) 
 
     def R_operator(self, u, v):
         # R = -sqrt(3) gamma2 (kx^2 - ky^2) + 2 i sqrt(3) gamma3 {kx,ky}
         return (
             math.sqrt(3.0) * self.h2m * self.gamma2
             * (
-                -ufl.inner(ufl.grad(u)[0], ufl.grad(v)[0])
-                + ufl.inner(ufl.grad(u)[1], ufl.grad(v)[1])
+                -ufl.inner(self.grad_B(u,0), self.grad_B(v,0))
+                + ufl.inner(self.grad_B(u,1), self.grad_B(v,1))
             )
             + 2.0j * math.sqrt(3.0) * self.h2m * self.gamma3 * self.sym_d(u, v, 0, 1)
         )
@@ -226,8 +260,8 @@ class LK_hamiltonian_6band:
         return (
             math.sqrt(3.0) * self.h2m * self.gamma2
             * (
-                -ufl.inner(ufl.grad(u)[0], ufl.grad(v)[0])
-                + ufl.inner(ufl.grad(u)[1], ufl.grad(v)[1])
+                -ufl.inner(self.grad_B(u,0), self.grad_B(v,0))
+                + ufl.inner(self.grad_B(u,1), self.grad_B(v,1))
             )
             - 2.0j * math.sqrt(3.0) * self.h2m * self.gamma3 * self.sym_d(u, v, 0, 1)
         )
@@ -327,7 +361,7 @@ class LK_hamiltonian_6band:
             print(f"Ev max: {self.Ev.x.array.max():.6e}")
 
 
-            H11 = H11 - self.Ev * ufl.inner(u1, v1) * self.dx
+            H11 = H11 - self.Ev * ufl.inner(u1, v1) * self.dx 
             H22 = H22 - self.Ev * ufl.inner(u2, v2) * self.dx
             H33 = H33 - self.Ev * ufl.inner(u3, v3) * self.dx
             H44 = H44 - self.Ev * ufl.inner(u4, v4) * self.dx
@@ -418,42 +452,7 @@ class LK_hamiltonian_6band:
             H55 += (P_e) * ufl.inner(u5, v5) * self.dx
             H66 += (P_e) * ufl.inner(u6, v6) * self.dx
 
-            # Off-diagonal strain couplings
-            H13 += (-S_e      * ufl.inner(u1, v3)) * self.dx
-            H31 += (-S_e_conj * ufl.inner(u3, v1)) * self.dx
 
-            H14 += ( R_e      * ufl.inner(u1, v4)) * self.dx
-            H41 += ( R_e_conj * ufl.inner(u4, v1)) * self.dx
-
-            H15 += ( S_e      * ufl.inner(u1, v5)) * self.dx
-            H51 += ( S_e_conj * ufl.inner(u5, v1)) * self.dx
-
-            H16 += ( R_e      * ufl.inner(u1, v6)) * self.dx
-            H61 += ( R_e_conj * ufl.inner(u6, v1)) * self.dx
-
-            H23 += (-R_e      * ufl.inner(u2, v3)) * self.dx
-            H32 += (-R_e_conj * ufl.inner(u3, v2)) * self.dx
-
-            H24 += (-S_e      * ufl.inner(u2, v4)) * self.dx
-            H42 += (-S_e_conj * ufl.inner(u4, v2)) * self.dx
-
-            H25 += (-R_e_conj * ufl.inner(u2, v5)) * self.dx
-            H52 += (-R_e      * ufl.inner(u5, v2)) * self.dx
-
-            H26 += ( S_e      * ufl.inner(u2, v6)) * self.dx
-            H62 += ( S_e_conj * ufl.inner(u6, v2)) * self.dx
-
-            H35 += ( Q_e      * ufl.inner(u3, v5)) * self.dx
-            H53 += ( Q_e      * ufl.inner(u5, v3)) * self.dx
-
-            H36 += ( S_e      * ufl.inner(u3, v6)) * self.dx
-            H63 += ( S_e_conj * ufl.inner(u6, v3)) * self.dx
-
-            H45 += (-S_e      * ufl.inner(u4, v5)) * self.dx
-            H54 += (-S_e_conj * ufl.inner(u5, v4)) * self.dx
-
-            H46 += ( Q_e      * ufl.inner(u4, v6)) * self.dx
-            H64 += ( Q_e      * ufl.inner(u6, v4)) * self.dx
 
 
         # NO band edge potential - kinetic energy only
