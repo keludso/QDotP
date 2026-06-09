@@ -47,28 +47,6 @@ mpirun -np 4 python test_6band.py
 
 The input mesh should be generated using Gmsh and saved in `.msh2` format. The physical region names and gate boundary names in the mesh must match the names used in the Python script.
 
-Example physical region names include:
-
-```text
-cap
-barrier_dot
-barrier
-two_deg_dot
-two_deg
-relaxed_barrier
-relaxed_dot
-substrate
-```
-
-Example gate or contact names include:
-
-```text
-top_gate_1
-top_gate_2
-bottom_gate
-plunger_gate
-back_gate
-```
 
 ---
 
