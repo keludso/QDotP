@@ -1,31 +1,18 @@
-# kdotP
 # kdotP: FEM k·p / Poisson Solver for Quantum Dot Heterostructures
 
-`kdotP` is a Python package for solving electrostatics and multiband k·p Hamiltonians in semiconductor quantum-dot heterostructures.  
-The code is designed around a `Device` object that reads a Gmsh mesh, assigns materials to physical regions, solves the nonlinear Poisson equation, extracts a submesh for the active quantum-dot region, and solves 4-band, 6-band, or 8-band Luttinger/Kane Hamiltonians.
+## 1. Introduction
 
-This README describes the main workflow, the purpose of each function/class used in the example script, and common help/troubleshooting notes.
+`kdotP` is a Python-based finite-element simulation package for semiconductor quantum-dot heterostructures. The package is designed to solve the electrostatic potential of realistic gate-defined devices and use this potential as an input to multiband k·p Hamiltonian calculations.
 
----
+The main workflow begins with a Gmsh-generated device mesh. The mesh is read into a `Device` object, where physical regions are assigned material properties such as Ge, SiGe, or Al₂O₃. The nonlinear Poisson equation is then solved on the full device geometry using gate voltage boundary conditions. After the electrostatic potential is obtained, the active quantum-dot region is extracted as a submesh. The electrostatic potential is mapped onto this submesh and used in the 4-band, 6-band, or 8-band k·p Hamiltonian solver.
 
-## 1. Main Features
-
-- Read `.msh2` device meshes generated from Gmsh.
-- Assign semiconductor and dielectric materials by physical region name.
-- Solve the nonlinear Poisson equation with gate voltage boundary conditions.
-- Extract active quantum-dot submeshes from the full electrostatic device.
-- Map electrostatic potential from the full mesh to a submesh.
-- Solve 4-band, 6-band, or 8-band k·p Hamiltonians.
-- Include strain tensors region-by-region.
-- Include external magnetic fields.
-- Save eigenstate probability densities to `.vtu` files for visualization in ParaView or PyVista.
-- Save log output to a text file using `savedat`.
+This package is intended for research-level simulations of Ge/SiGe and related strained semiconductor quantum-dot systems. It can be used to study electrostatic confinement, strain effects, magnetic-field dependence, heavy-hole/light-hole mixing, eigenenergies, and quantum-dot probability densities.
 
 ---
 
 ## 2. Requirements
 
-The code assumes a scientific Python environment with FEM and eigenvalue solver support.
+The code requires a scientific Python environment with finite-element and eigenvalue solver support.
 
 Typical requirements are:
 
@@ -42,57 +29,48 @@ gmsh
 pyvista
 ```
 
-If using MPI:
-
-```bash
-mpirun -np 4 python test_6band.py
-```
-
-For serial testing:
+For serial execution:
 
 ```bash
 python test_6band.py
 ```
 
----
+For MPI execution:
 
-## 3. Package Structure
+```bash
+mpirun -np 4 python test_6band.py
+```
 
-A typical project layout is:
+The input mesh should be generated using Gmsh and saved in `.msh2` format. The physical region names and gate boundary names in the mesh must match the names used in the Python script.
+
+Example physical region names include:
 
 ```text
-kdotP/
-│
-├── base/
-│   ├── __init__.py
-│   ├── device.py
-│   └── materials.py
-│
-├── poisson_solver.py
-├── luttinger_solver.py
-├── savedat.py
-│
-examples/
-└── test_6band.py
+cap
+barrier_dot
+barrier
+two_deg_dot
+two_deg
+relaxed_barrier
+relaxed_dot
+substrate
 ```
 
-The example imports:
+Example gate or contact names include:
 
-```python
-from kdotP.base import Device
-from kdotP.base.materials import Ge, SiGe80, Al2O3
-from kdotP.poisson_solver import NonlinearPoissonSolver
-from kdotP.luttinger_solver import LK4BandHamiltonian
-from kdotP.luttinger_solver import LK_hamiltonian_8band
-from kdotP.luttinger_solver import LK_hamiltonian_6band
-from savedat import savedat
+```text
+top_gate_1
+top_gate_2
+bottom_gate
+plunger_gate
+back_gate
 ```
 
 ---
 
-## 4. Example: Testing the 6-Band Model
+## 3. Example File
 
-The following script solves the nonlinear Poisson problem, extracts the dot submesh, solves the 6-band k·p Hamiltonian, and then repeats the calculation for several strain values.
+The following example demonstrates the basic workflow for solving the nonlinear Poisson equation, extracting the active dot region, solving the 6-band k·p Hamiltonian, and saving the ground-state probability density.
 
 ```python
 from kdotP.base import Device
@@ -123,11 +101,10 @@ materials_map = {
     "relaxed_dot": SiGe80,
     "substrate": SiGe80,
 }
+
 device.set_materials(materials_map)
 
-# Solve nonlinear Poisson equation 
-#
-
+# Create nonlinear Poisson solver
 psolver = NonlinearPoissonSolver(
     device,
     0.0,
@@ -135,6 +112,7 @@ psolver = NonlinearPoissonSolver(
     log_writer=logger,
 )
 
+# Define gate voltages
 Gate_voltages = {
     "top_gate_1": 0.0,
     "top_gate_2": 0.0,
@@ -144,6 +122,7 @@ Gate_voltages = {
 
 Ohmic_gate = ["back_gate"]
 
+# Solve nonlinear Poisson equation
 phi = psolver.nonlin_solve(
     Gate_voltages,
     Ohmic_gate,
@@ -151,7 +130,7 @@ phi = psolver.nonlin_solve(
     output_file="poisson.vtu",
 )
 
-# Create a submesh for the dot region
+# Create a submesh for the active quantum-dot region
 dot_submesh = ["barrier_dot", "two_deg_dot", "relaxed_dot"]
 
 dot_materials = {
@@ -162,10 +141,10 @@ dot_materials = {
 
 submesh, vertex_map = device.create_submesh(dot_submesh, dot_materials)
 
-# Interpolate/map Poisson potential from full mesh to dot submesh
+# Map Poisson potential from full mesh to dot submesh
 phi_sub = device.submesh_parameters(phi, submesh, vertex_map)
 
-# Create 6-band Luttinger/Kane Hamiltonian solver
+# Create 6-band k·p Hamiltonian solver
 lk_solver = LK_hamiltonian_6band(
     device,
     submesh,
@@ -174,22 +153,21 @@ lk_solver = LK_hamiltonian_6band(
     verbose=True,
 )
 
-# Solve the 6-band Hamiltonian
+# Solve 6-band Hamiltonian
 eigenvalues, eigenvectors = lk_solver.solve_LK()
 
-# Save the ground-state probability density
+# Save ground-state probability density
 lk_solver.save_probability_density_ground_state(
     eigenvectors,
     eigenvalues,
     output_file="ground_state_6band.vtu",
 )
 
-# Sweep strain values
+# Example strain sweep
 R = np.array([-0.01, -0.005, 0.0, 0.005, 0.01])
 
 for r in R:
 
-    # Out-of-plane strain assuming elastic relaxation
     ezz = -2 * r * 0.37
 
     lk_solver.set_region_strain(
@@ -201,7 +179,6 @@ for r in R:
         ],
     )
 
-    # Magnetic field in Tesla
     B = [0.0, 0.0, 0.2]
     lk_solver.set_BField(B)
 
@@ -216,1006 +193,347 @@ for r in R:
 
 ---
 
-## 5. Workflow Description
+## 4. Description of the Nonlinear Poisson and kdotP Method
+
+## 4. Description of the Nonlinear Poisson and kdotP Method
+
+The `kdotP` simulation workflow combines electrostatic device modeling with multiband k·p quantum calculations. The calculation starts with a full three-dimensional device mesh that contains the dielectric layers, semiconductor regions, gates, ohmic contacts, and active quantum-well or quantum-dot region.
+
+The nonlinear Poisson solver computes the electrostatic potential over the full device geometry. It uses the material properties assigned through the `Device` object and applies voltage boundary conditions to the named gates and ohmic contacts. The nonlinear Poisson equation has the general form:
+
+[
+\nabla \cdot \left[\epsilon(\mathbf{r}) \nabla \phi(\mathbf{r}) \right] = -\rho(\phi,\mathbf{r}),
+]
+
+where (\epsilon(\mathbf{r})) is the spatially dependent dielectric constant, (\phi(\mathbf{r})) is the electrostatic potential, and (\rho(\phi,\mathbf{r})) is the nonlinear charge density. The charge density depends on the local electrostatic potential and material parameters, which makes the problem nonlinear.
+
+After the electrostatic potential is obtained, the active quantum-dot region is extracted from the full device mesh. This is done because the electrostatic problem must be solved over the entire device, while the quantum Hamiltonian only needs to be solved in the active region where the confined carrier states are located. The potential from the full mesh is then mapped onto the quantum-dot submesh and used as an input to the k·p Hamiltonian solver.
+
+The k·p method is based on the interaction and coupling between semiconductor energy bands. The number of bands included in the Hamiltonian determines the level of physical accuracy and computational cost. A lower-dimensional model, such as the 4-band Hamiltonian, captures the heavy-hole and light-hole valence bands. A 6-band model also includes the split-off bands. An 8-band model includes both valence-band and conduction-band states and is therefore useful when conduction-valence coupling is important.
+
+The basis functions used in the valence-band model are
+
+[
+\left| \frac{3}{2}, \frac{3}{2} \right\rangle =
+\frac{1}{\sqrt{2}} \left( |X+iY\rangle \uparrow \right),
+]
+
+[
+\left| \frac{3}{2}, -\frac{3}{2} \right\rangle =
+\frac{1}{\sqrt{2}} \left( |X-iY\rangle \downarrow \right),
+]
+
+[
+\left| \frac{3}{2}, \frac{1}{2} \right\rangle =
+\frac{1}{\sqrt{6}} \left( |X+iY\rangle \downarrow \right)
+-\sqrt{\frac{2}{3}} |Z\uparrow\rangle,
+]
+
+[
+\left| \frac{3}{2}, -\frac{1}{2} \right\rangle =
+-\frac{1}{\sqrt{6}} \left( |X-iY\rangle \uparrow \right)
+-\sqrt{\frac{2}{3}} |Z\downarrow\rangle,
+]
+
+[
+\left| \frac{1}{2}, \frac{1}{2} \right\rangle =
+\frac{1}{\sqrt{3}} \left( |X+iY\rangle \downarrow \right)
++\frac{1}{\sqrt{3}} |Z\uparrow\rangle,
+]
+
+[
+\left| \frac{1}{2}, -\frac{1}{2} \right\rangle =
+-\frac{1}{\sqrt{3}} \left( |X-iY\rangle \uparrow \right)
++\frac{1}{\sqrt{3}} |Z\downarrow\rangle.
+]
+
+The 4-band model is written in the heavy-hole and light-hole basis,
+
+[
+\left{
+\left| \frac{3}{2},\frac{3}{2} \right\rangle,
+\left| \frac{3}{2},-\frac{3}{2} \right\rangle,
+\left| \frac{3}{2},\frac{1}{2} \right\rangle,
+\left| \frac{3}{2},-\frac{1}{2} \right\rangle
+\right},
+]
+
+and is given by \cite{foreman1993}
+
+[
+H_{4\times4} =
+\begin{pmatrix}
+P + Q & 0 & -S_{-} & R \
+0 & P + Q & -R^{\dagger} & -S_{+} \
+-S_{-}^{\dagger} & -R & P - Q & C \
+R^{\dagger} & -S_{+}^{\dagger} & C^{\dagger} & P - Q
+\end{pmatrix}.
+]
+
+The matrix elements are
+
+[
+P =
+E_V(\mathbf{r})+
+\frac{\hbar^2}{2m_e}
+\left(
+\gamma_1 k_x^2+\gamma_1 k_y^2+\gamma_1 k_z^2
+\right),
+]
+
+[
+Q =
+\frac{\hbar^2}{2m_e}
+\left(
+\gamma_2 k_x^2+\gamma_2 k_y^2-2\gamma_2 k_z^2
+\right),
+]
+
+[
+R =
+-\frac{\hbar^2\sqrt{3}}{2m_e} k_- \bar{\gamma} k_-
++
+\frac{\hbar^2\sqrt{3}}{2m_e} k_+ \mu k_+,
+]
+
+[
+S_{\pm} =
+\frac{\hbar^2\sqrt{3}}{m_e}
+\left[
+k_{\pm}(\sigma-\delta)k_z+k_z\pi k_{\pm}
+\right],
+]
+
+[
+C =
+\frac{\hbar^2}{m_e}
+\left[
+k_z(\sigma-\delta-\pi)k_-
+-------------------------
+
+k_-(\sigma-\delta-\pi)k_z
+\right].
+]
+
+The auxiliary parameters are
+
+[
+k_{\pm}=k_x\pm i k_y,
+\qquad
+k_{\parallel}^2=k_x^2+k_y^2,
+]
+
+[
+\bar{\gamma}=\frac{1}{2}(\gamma_3+\gamma_2),
+\qquad
+\mu=\frac{1}{2}(\gamma_3-\gamma_2),
+]
+
+[
+\sigma=\bar{\gamma}-\frac{1}{2}\delta,
+\qquad
+\pi=\mu+\frac{3}{2}\delta,
+]
+
+[
+\delta=\frac{1}{9}
+\left(
+1+\gamma_1+\gamma_2-3\gamma_3
+\right).
+]
+
+The 6-band Hamiltonian extends the 4-band model by including the split-off valence-band states. It is written as
+
+[
+H_{6\times6} =
+\begin{pmatrix}
+P + Q & 0 & -S_{-} & R & \frac{1}{\sqrt{2}}S_{-} & \sqrt{2}R \
+0 & P + Q & -R^{\dagger} & -S_{+} & -\sqrt{2}R^{\dagger} & \frac{1}{\sqrt{2}}S_{+} \
+-S_{-}^{\dagger} & -R & P - Q & C & \sqrt{2}Q & \sqrt{\frac{3}{2}}\Sigma_{-} \
+R^{\dagger} & -S_{+}^{\dagger} & C^{\dagger} & P - Q & -\sqrt{\frac{3}{2}}\Sigma_{+} & \sqrt{2}Q \
+\frac{1}{\sqrt{2}}S_{-}^{\dagger} & -\sqrt{2}R & \sqrt{2}Q & -\sqrt{\frac{3}{2}}\Sigma_{+}^{\dagger} & P + \Delta & -C \
+\sqrt{2}R^{\dagger} & \frac{1}{\sqrt{2}}S_{+}^{\dagger} & \sqrt{\frac{3}{2}}\Sigma_{-} & \sqrt{2}Q & -C^{\dagger} & P + \Delta
+\end{pmatrix}.
+]
+
+Here,
+
+[
+P =
+E_v(z)+
+\frac{1}{2}
+\left(
+\gamma_1 k_{\parallel}^2+k_z\gamma_1 k_z
+\right),
+]
+
+[
+Q =
+\zeta(z)+
+\frac{1}{2}
+\left(
+\gamma_2 k_{\parallel}^2-2k_z\gamma_2 k_z
+\right),
+]
+
+[
+R =
+-\frac{\sqrt{3}}{2}\bar{\gamma} k_-^2
++
+\frac{\sqrt{3}}{2}\mu k_+^2,
+]
+
+[
+S_{\pm} =
+\sqrt{3}k_{\pm}
+\left[
+(\sigma-\delta)k_z+k_z\pi
+\right],
+]
+
+[
+\Sigma_{\pm} =
+\sqrt{3}k_{\pm}
+\left{
+\left[
+\frac{1}{3}(\sigma-\delta)+\frac{2}{3}\pi
+\right]k_z
++
+k_z
+\left[
+\frac{2}{3}(\sigma-\delta)+\frac{1}{3}\pi
+\right]
+\right},
+]
+
+[
+C =
+k_-
+\left[
+k_z(\sigma-\delta-\pi)
+----------------------
+
+(\sigma-\delta-\pi)k_z
+\right],
+]
+
+with
+
+[
+k_{\parallel}^2=k_x^2+k_y^2,
+\qquad
+k_+=k_x+i k_y,
+\qquad
+k_- = k_x-i k_y.
+]
+
+The 8-band model further extends the Hamiltonian by including conduction-band states and their coupling to the valence bands. This model is useful when conduction-valence mixing, narrow-gap effects, or strong confinement effects are important. The 8-band Hamiltonian can be written as
+
+[
+H_{8\times8} =
+\begin{pmatrix}
+E_v + E_0 + \dfrac{\hbar^2 k^2}{2m'} & 0 &
+-\dfrac{1}{\sqrt{2}} P_0 k_+ &
+\dfrac{\sqrt{3}}{\sqrt{2}} P_0 k_z &
+0 & 0 &
+-\dfrac{1}{\sqrt{2}} P_0 k_- &
+\sqrt{\dfrac{3}{2}} P_0 k_z [8pt]
+
+0 & E_v + E_0 + \dfrac{\hbar^2 k^2}{2m'} &
+0 &
+-\dfrac{1}{\sqrt{6}} P_0 k_+ &
+-\dfrac{1}{\sqrt{6}} P_0 k_- &
+0 &
+\sqrt{\dfrac{3}{2}} P_0 k_z &
+-\dfrac{1}{\sqrt{6}} P_0 k_+ [8pt]
+
+-\dfrac{1}{\sqrt{2}} P_0 k_- & 0 &
+P + Q & 0 & -S_- & R &
+\dfrac{1}{\sqrt{2}} S_- & \sqrt{2}R [8pt]
+
+\sqrt{\dfrac{3}{2}} P_0 k_z & -\dfrac{1}{\sqrt{6}} P_0 k_+ &
+0 & P + Q & -R^\dagger & -S_+ &
+-\sqrt{2}R^\dagger & \dfrac{1}{\sqrt{2}}S_+ [8pt]
+
+0 & -\dfrac{1}{\sqrt{6}} P_0 k_- &
+-S_-^\dagger & -R & P - Q & C &
+\sqrt{2}Q & \sqrt{3}\Sigma_+ [8pt]
+
+0 & 0 &
+R^\dagger & -S_+^\dagger & C^\dagger & P - Q &
+-\sqrt{3}\Sigma_+ & \sqrt{2}Q [8pt]
+
+-\dfrac{1}{\sqrt{2}}P_0 k_- & \sqrt{\dfrac{3}{2}}P_0 k_z &
+\dfrac{1}{\sqrt{2}}S_-^\dagger & -\sqrt{2}R & \sqrt{2}Q & -\sqrt{3}\Sigma_+^\dagger &
+P+\Delta & -C [8pt]
+
+\sqrt{\dfrac{3}{2}}P_0 k_z & -\dfrac{1}{\sqrt{6}}P_0 k_+ &
+\sqrt{2}R^\dagger & \dfrac{1}{\sqrt{2}}S_+^\dagger & \sqrt{3}\Sigma_- & \sqrt{2}Q &
+-C^\dagger & P+\Delta
+\end{pmatrix}.
+]
+
+The Luttinger parameters used in the model can be corrected to account for coupling to the conduction band. The Kane energy is
+
+[
+E_P =
+\frac{2m_0P_0^2}{\hbar^2}.
+]
+
+The modified Luttinger parameters are
+
+[
+\gamma_1 =
+\gamma_1^L -
+\frac{E_P}{3E_g+\Delta},
+]
+
+[
+\gamma_2 =
+\gamma_2^L -
+\frac{1}{2}
+\frac{E_P}{3E_g+\Delta},
+]
+
+[
+\gamma_3 =
+\gamma_3^L -
+\frac{1}{2}
+\frac{E_P}{3E_g+\Delta}.
+]
+
+In the finite-element implementation, the k·p Hamiltonian is assembled on the active quantum-dot submesh. The electrostatic confinement potential from the nonlinear Poisson solver enters through (E_v(\mathbf{r})) or the corresponding band-edge potential. Strain can be included through Bir-Pikus deformation-potential terms, and magnetic-field effects can be included through Zeeman and orbital coupling terms depending on the selected Hamiltonian model.
+
+The final eigenvalue problem has the generalized form
+
+[
+A\psi = EB\psi,
+]
+
+where (A) is the assembled k·p Hamiltonian matrix, (B) is the finite-element mass matrix, (E) is the eigenenergy, and (\psi) is the multicomponent envelope-function eigenstate.
+
+For multiband models, the physical probability density is obtained by summing over all band components:
+
+[
+\rho(\mathbf{r}) =
+\sum_i |\psi_i(\mathbf{r})|^2.
+]
+
+For the 6-band model, this sum is taken over the six coupled envelope-function components. The resulting probability density can be saved as a `.vtu` file and visualized in ParaView or PyVista.
+
+
+## 5. Results
+
+The simulation produces electrostatic potential maps, quantum-dot submesh results, eigenenergies, and ground-state probability-density distributions.
+ith quantum-mechanical k·p modeling. This allows the user to study how gate voltage, device geometry, strain, and magnetic field affect quantum-dot confinement and low-energy hole states. The bandstructure plot across the center of the quantum dot shows a band-engineered SiGe/GE heterostructure.
+
+[NonLinear_poisson.tif](https://github.com/user-attachments/files/28761430/NonLinear_poisson.tif)
+
+The wavefunction calculated using the 6-band model across the Y axis showing the quantum dot residing in the Ge structure. 
+
+<img width="970" height="757" alt="ground_statewavefunction_Yaxis" src="https://github.com/user-attachments/assets/46af5f45-a790-4a22-a1b0-872bfd7359bb" />
+
+
+The wavefunction was calculated using the 6-band across the Z axis.
+<img width="1119" height="770" alt="ground_statewavefunction_Zaxis" src="https://github.com/user-attachments/assets/209b70d1-dc96-4b6e-a534-ff76af7db74b" />
 
-The calculation follows this sequence:
-
-```text
-Gmsh mesh
-   ↓
-Device(filename)
-   ↓
-Assign materials
-   ↓
-Solve nonlinear Poisson equation
-   ↓
-Extract quantum-dot submesh
-   ↓
-Map electrostatic potential to submesh
-   ↓
-Build 6-band k·p Hamiltonian
-   ↓
-Apply strain and magnetic field
-   ↓
-Solve eigenvalue problem
-   ↓
-Save probability density
-```
-
----
-
-## 6. Class and Function Descriptions
-
-### `Device`
-
-```python
-device = Device(filename, verbose=True)
-```
-
-The `Device` class is the central object that stores the mesh, region labels, facet labels, material assignments, and helper methods for submesh creation.
-
-#### Inputs
-
-| Argument | Type | Description |
-|---|---|---|
-| `filename` | `str` | Name of the `.msh2` mesh file. |
-| `verbose` | `bool` | If `True`, prints mesh and region information. |
-
-#### Main responsibilities
-
-- Reads the Gmsh mesh.
-- Stores the computational domain.
-- Stores cell tags and facet tags.
-- Maps physical region names to mesh markers.
-- Assigns material parameters.
-- Creates submeshes for selected regions.
-- Maps fields from the full mesh to submeshes.
-- Stores a logger if provided.
-
----
-
-### `device.set_logger`
-
-```python
-device.set_logger(logger)
-```
-
-Attaches a log writer to the `Device` object.
-
-#### Inputs
-
-| Argument | Type | Description |
-|---|---|---|
-| `logger` | object | A log-writer object, such as one created by `savedat`. |
-
-#### Purpose
-
-Use this function to save diagnostic information, solver messages, material assignments, and eigenvalue results to a text file.
-
----
-
-### `device.set_materials`
-
-```python
-device.set_materials(materials_map)
-```
-
-Assigns materials to named physical regions in the mesh.
-
-#### Inputs
-
-| Argument | Type | Description |
-|---|---|---|
-| `materials_map` | `dict` | Dictionary mapping region names to material objects. |
-
-#### Example
-
-```python
-materials_map = {
-    "two_deg_dot": Ge,
-    "barrier_dot": SiGe80,
-    "cap": Al2O3,
-}
-device.set_materials(materials_map)
-```
-
-#### Notes
-
-The keys must match the physical names defined in the Gmsh mesh.  
-If a region name is misspelled or missing from the mesh, material assignment may fail or produce incorrect device parameters.
-
----
-
-### `NonlinearPoissonSolver`
-
-```python
-class NonlinearPoissonSolver:
-    """
-    Nonlinear Poisson solver that works directly with a Device object.
-
-    The solver reuses the material functions stored in the Device class and
-    takes the mesh from device.domain, so it can be shared cleanly across the
-    package.
-    """
-
-    def __init__(self, device, fermi, verbose=False, log_writer=None):
-        ...
-```
-
-Creates a nonlinear Poisson solver for the full device mesh.
-
-#### Constructor
-
-```python
-psolver = NonlinearPoissonSolver(
-    device,
-    fermi,
-    verbose=False,
-    log_writer=None,
-)
-```
-
-#### Constructor arguments
-
-| Argument | Type | Default | Description |
-|---|---:|---:|---|
-| `device` | `Device` | required | Main device object. The solver uses `device.domain` as the mesh and reuses the material fields, region labels, facet labels, and material functions already stored in the `Device` object. |
-| `fermi` | `float` | required | Fermi-level reference used in the nonlinear charge-density model. In the example, this is set to `0.0`. The exact physical meaning depends on how the carrier density is implemented in `poisson_solver.py`, but it is usually the electrochemical potential or energy reference for evaluating carrier occupation. |
-| `verbose` | `bool` | `False` | If `True`, prints detailed solver information, such as mesh information, nonlinear iteration progress, residuals, and diagnostic messages. |
-| `log_writer` | object or `None` | `None` | Optional logger object, such as one created by `savedat`. If provided, solver messages and diagnostic outputs are written to the log file. |
-
-#### Purpose
-
-The `NonlinearPoissonSolver` computes the electrostatic potential `phi` over the full device geometry. It uses the material parameters assigned to the `Device` object and applies voltage boundary conditions to named gates and ohmic contacts.
-
-The nonlinear Poisson equation usually has the form:
-
-```text
-∇ · (ε(r) ∇φ(r)) = -ρ(φ, r)
-```
-
-where:
-
-- `ε(r)` is the position-dependent dielectric constant.
-- `φ(r)` is the electrostatic potential.
-- `ρ(φ, r)` is the nonlinear charge density.
-
----
-
-### `psolver.nonlin_solve`
-
-```python
-def nonlin_solve(
-    self,
-    gate_voltages,
-    ohmic_gate_name,
-    save_file=True,
-    output_file="poisson.vtu",
-):
-    ...
-```
-
-Solves the nonlinear Poisson equation using the gate voltages and ohmic boundary names provided by the user.
-
-#### Usage
-
-```python
-phi = psolver.nonlin_solve(
-    gate_voltages=Gate_voltages,
-    ohmic_gate_name=Ohmic_gate,
-    save_file=True,
-    output_file="poisson.vtu",
-)
-```
-
-or, using positional arguments:
-
-```python
-phi = psolver.nonlin_solve(Gate_voltages, Ohmic_gate)
-```
-
-#### Arguments
-
-| Argument | Type | Default | Description |
-|---|---:|---:|---|
-| `gate_voltages` | `dict[str, float]` | required | Dictionary mapping gate names to applied voltage values. The keys must match physical boundary names in the Gmsh mesh. Example: `{"top_gate_1": 0.0, "plunger_gate": -0.2}`. |
-| `ohmic_gate_name` | `list[str]` or `str` | required | Name or list of names of ohmic contacts/reference gates. These boundaries are usually treated as contacts or reference electrostatic boundaries. In the example, `Ohmic_gate = ["back_gate"]`. |
-| `save_file` | `bool` | `True` | If `True`, saves the computed electrostatic potential to a `.vtu` file. If `False`, the potential is returned but not written to disk. |
-| `output_file` | `str` | `"poisson.vtu"` | Name of the output file used when `save_file=True`. The file is usually written in VTK/VTU format for visualization in ParaView or PyVista. |
-
-#### Returns
-
-| Output | Type | Description |
-|---|---|---|
-| `phi` | FEM function | Electrostatic potential solved on the full device mesh. This field is later mapped to the quantum-dot submesh using `device.submesh_parameters`. |
-
-#### Example
-
-```python
-Gate_voltages = {
-    "top_gate_1": 0.0,
-    "top_gate_2": 0.0,
-    "bottom_gate": 0.0,
-    "plunger_gate": 0.0,
-}
-
-Ohmic_gate = ["back_gate"]
-
-phi = psolver.nonlin_solve(
-    Gate_voltages,
-    Ohmic_gate,
-    save_file=True,
-    output_file="poisson.vtu",
-)
-```
-
-#### Notes
-
-- Every key in `gate_voltages` must correspond to a physical boundary name in the mesh.
-- Every name in `ohmic_gate_name` must also exist as a boundary/facet label in the mesh.
-- The returned `phi` is defined on the full device mesh.
-- The Luttinger/Kane solver normally uses a restricted potential `phi_sub`, obtained by mapping `phi` to the active quantum-dot submesh.
-- If the file output is not needed, use `save_file=False` to avoid writing `poisson.vtu`.
-
----
-
-### `device.create_submesh`
-
-```python
-submesh, vertex_map = device.create_submesh(dot_submesh, dot_materials)
-```
-
-Creates a smaller mesh containing only selected physical regions.
-
-#### Inputs
-
-| Argument | Type | Description |
-|---|---|---|
-| `dot_submesh` | `list[str]` | Region names to include in the submesh. |
-| `dot_materials` | `dict` | Material map for the selected submesh regions. |
-
-#### Returns
-
-| Output | Type | Description |
-|---|---|---|
-| `submesh` | FEM mesh | Mesh containing only the selected dot regions. |
-| `vertex_map` | array-like | Map between submesh vertices and original full-mesh vertices. |
-
-#### Example
-
-```python
-dot_submesh = ["barrier_dot", "two_deg_dot", "relaxed_dot"]
-
-dot_materials = {
-    "barrier_dot": SiGe80,
-    "two_deg_dot": Ge,
-    "relaxed_dot": SiGe80,
-}
-
-submesh, vertex_map = device.create_submesh(dot_submesh, dot_materials)
-```
-
-#### Purpose
-
-The electrostatic problem is solved on the full device, but the k·p Hamiltonian is usually solved only in the active quantum-dot region to reduce computational cost.
-
----
-
-### `device.submesh_parameters`
-
-```python
-phi_sub = device.submesh_parameters(phi, submesh, vertex_map)
-```
-
-Maps a field from the full device mesh to the submesh.
-
-#### Inputs
-
-| Argument | Type | Description |
-|---|---|---|
-| `phi` | FEM function | Field defined on the full mesh. |
-| `submesh` | FEM mesh | Target submesh. |
-| `vertex_map` | array-like | Mapping from submesh vertices to full-mesh vertices. |
-
-#### Returns
-
-| Output | Type | Description |
-|---|---|---|
-| `phi_sub` | FEM function | Electrostatic potential mapped onto the submesh. |
-
-#### Purpose
-
-The Luttinger/Kane Hamiltonian needs the electrostatic potential in the active quantum-dot region. This function transfers the Poisson solution from the full mesh to the submesh.
-
----
-
-### `LK_hamiltonian_6band`
-
-```python
-def __init__(
-    self,
-    device,
-    submesh,
-    phi,
-    log_writer=None,
-    verbose=False,
-):
-    ...
-```
-
-Creates the 6-band k·p Hamiltonian solver on the active quantum-dot submesh.
-
-#### Constructor
-
-```python
-lk_solver = LK_hamiltonian_6band(
-    device,
-    submesh,
-    phi,
-    log_writer=None,
-    verbose=False,
-)
-```
-
-In the example:
-
-```python
-lk_solver = LK_hamiltonian_6band(
-    device,
-    submesh,
-    phi_sub,
-    log_writer=logger,
-    verbose=True,
-)
-```
-
-#### Constructor arguments
-
-| Argument | Type | Default | Description |
-|---|---:|---:|---|
-| `device` | `Device` | required | Full `Device` object. The solver uses it to access material parameters, region labels, material maps, logging utilities, and device-level metadata. Even though the Hamiltonian is solved on a submesh, the full device object is still needed for region/material bookkeeping. |
-| `submesh` | FEM mesh | required | Active-region mesh on which the 6-band Hamiltonian is assembled. This is usually produced by `device.create_submesh(...)` and contains only the quantum-dot and nearby barrier regions. |
-| `phi` | FEM function | required | Electrostatic potential on the same mesh used by the Hamiltonian solver. In the example, this is `phi_sub`, obtained from `device.submesh_parameters(phi, submesh, vertex_map)`. |
-| `log_writer` | object or `None` | `None` | Optional logger, such as `savedat`. If provided, Hamiltonian assembly information, eigenvalues, solver diagnostics, strain settings, and magnetic-field settings can be written to the log file. |
-| `verbose` | `bool` | `False` | If `True`, prints detailed information about Hamiltonian setup, matrix assembly, eigenvalue solver settings, and diagnostics. |
-
-#### Purpose
-
-The 6-band Hamiltonian solver builds the finite-element form of the Luttinger/Kane Hamiltonian for valence-band states. It is typically used for hole states in Ge/SiGe quantum wells or quantum dots.
-
-The 6-band model typically includes:
-
-- Heavy-hole states.
-- Light-hole states.
-- Split-off hole states.
-- Electrostatic confinement through `phi`.
-- Strain coupling through Bir-Pikus terms.
-- Magnetic-field coupling through Zeeman terms and any additional field terms implemented in the code.
-
-#### Important consistency requirement
-
-`submesh` and `phi` must be defined on the same mesh. Do not pass the full-device Poisson solution directly into `LK_hamiltonian_6band` unless the Hamiltonian is also being solved on the full device mesh. For the standard workflow, use:
-
-```python
-phi_sub = device.submesh_parameters(phi, submesh, vertex_map)
-```
-
-then pass `phi_sub` into the Hamiltonian solver.
-
----
-
-### `lk_solver.solve_LK`
-
-```python
-eigenvalues, eigenvectors = lk_solver.solve_LK()
-```
-
-Assembles and solves the generalized eigenvalue problem for the k·p Hamiltonian.
-
-#### Returns
-
-| Output | Type | Description |
-|---|---|---|
-| `eigenvalues` | array-like | Computed energy eigenvalues. |
-| `eigenvectors` | array-like | Corresponding multicomponent eigenvectors. |
-
-#### Purpose
-
-Solves:
-
-```text
-A ψ = E B ψ
-```
-
-where:
-
-- `A` is the assembled k·p Hamiltonian matrix.
-- `B` is the FEM mass matrix.
-- `E` is the eigenenergy.
-- `ψ` is the multiband envelope-function eigenstate.
-
-#### Notes
-
-The eigenvectors are multicomponent wavefunctions.  
-For the 6-band model, each eigenvector contains six coupled envelope-function components.
-
----
-
-### `lk_solver.save_probability_density_ground_state`
-
-```python
-def save_probability_density_ground_state(
-    self,
-    eigenvectors,
-    eigenvalues,
-    output_file="ground_state_probability.vtu",
-):
-    ...
-```
-
-Saves the probability density of the ground-state eigenvector to a `.vtu` file.
-
-#### Usage
-
-```python
-lk_solver.save_probability_density_ground_state(
-    eigenvectors,
-    eigenvalues,
-    output_file="ground_state_6band.vtu",
-)
-```
-
-#### Arguments
-
-| Argument | Type | Default | Description |
-|---|---:|---:|---|
-| `eigenvectors` | array-like / PETSc vector collection | required | Eigenvectors returned by `lk_solver.solve_LK()`. For the 6-band model, each eigenvector contains six coupled envelope-function components. |
-| `eigenvalues` | array-like | required | Eigenvalues returned by `lk_solver.solve_LK()`. These are used to identify/order the ground state and may also be written as metadata or logged depending on implementation. |
-| `output_file` | `str` | `"ground_state_probability.vtu"` | Name of the output VTK file. Use a unique filename inside parameter sweeps to avoid overwriting previous results. |
-
-#### What it saves
-
-The function computes the total multiband probability density of the lowest-energy state:
-
-```text
-ρ(r) = Σ_i |ψ_i(r)|²
-```
-
-where `i` runs over all band components. For a 6-band Hamiltonian, this sum is over six envelope-function components.
-
-#### Returns
-
-This function is usually used for file output and may not return a value. The main output is the `.vtu` file.
-
-#### Example
-
-```python
-lk_solver.save_probability_density_ground_state(
-    eigenvectors,
-    eigenvalues,
-    output_file="ground_state_6band.vtu",
-)
-```
-
-For a strain sweep, use unique filenames:
-
-```python
-output_file = f"ground_state_6band_strain_{r:+.4f}.vtu"
-
-lk_solver.save_probability_density_ground_state(
-    eigenvectors,
-    eigenvalues,
-    output_file=output_file,
-)
-```
-
-#### Notes
-
-- The output can be opened in ParaView or PyVista.
-- The probability density should be checked for proper normalization.
-- For multiband models, the physically meaningful density is the sum of the squared magnitudes of all components.
-- If all sweep iterations use the same `output_file`, only the last result will be kept.
-
----
-
-### `lk_solver.set_region_strain`
-
-```python
-lk_solver.set_region_strain(
-    region_name,
-    strain_tensor,
-)
-```
-
-Sets the strain tensor for a specific material region.
-
-#### Inputs
-
-| Argument | Type | Description |
-|---|---|---|
-| `region_name` | `str` | Name of the region where strain is applied. |
-| `strain_tensor` | `3 x 3 list` or `numpy.ndarray` | Strain tensor. |
-
-#### Example
-
-```python
-r = 0.005
-ezz = -2 * r * 0.37
-
-lk_solver.set_region_strain(
-    "two_deg_dot",
-    [
-        [r,   0.0, 0.0],
-        [0.0, r,   0.0],
-        [0.0, 0.0, ezz],
-    ],
-)
-```
-
-#### Notes
-
-The strain tensor is:
-
-```text
-ε = [[εxx, εxy, εxz],
-     [εyx, εyy, εyz],
-     [εzx, εzy, εzz]]
-```
-
-For biaxial in-plane strain:
-
-```text
-εxx = εyy = r
-εzz = -2 C12/C11 r
-```
-
-In the example, `0.37` is used as an approximate elastic ratio.
-
----
-
-### `lk_solver.set_BField`
-
-```python
-lk_solver.set_BField(B)
-```
-
-Sets the external magnetic field.
-
-#### Inputs
-
-| Argument | Type | Description |
-|---|---|---|
-| `B` | `list[float]` or `numpy.ndarray` | Magnetic field vector `[Bx, By, Bz]` in Tesla. |
-
-#### Example
-
-```python
-B = [0.0, 0.0, 0.2]
-lk_solver.set_BField(B)
-```
-
-#### Purpose
-
-Adds magnetic-field terms to the Hamiltonian, such as Zeeman splitting and other field-dependent contributions implemented in the solver.
-
----
-
-### `LK4BandHamiltonian`
-
-```python
-from kdotP.luttinger_solver import LK4BandHamiltonian
-```
-
-The 4-band Hamiltonian solver is intended for valence-band calculations involving only heavy-hole and light-hole states.
-
-#### Typical model content
-
-- Heavy-hole bands.
-- Light-hole bands.
-- Luttinger parameters.
-- Electrostatic confinement.
-- Optional strain and magnetic-field terms, depending on implementation.
-
-#### When to use
-
-Use the 4-band model when split-off bands are far away in energy and do not significantly affect the low-energy hole states.
-
----
-
-### `LK_hamiltonian_8band`
-
-```python
-from kdotP.luttinger_solver import LK_hamiltonian_8band
-```
-
-The 8-band Hamiltonian solver is intended for coupled conduction-band and valence-band calculations.
-
-#### Typical model content
-
-- Conduction-band states.
-- Heavy-hole states.
-- Light-hole states.
-- Split-off states.
-- Kane coupling between conduction and valence bands.
-- Strain and magnetic-field effects, depending on implementation.
-
-#### When to use
-
-Use the 8-band model when conduction-valence coupling, strong confinement, or narrow-gap effects are important.
-
----
-
-### Material objects: `Ge`, `SiGe80`, `Al2O3`
-
-```python
-from kdotP.base.materials import Ge, SiGe80, Al2O3
-```
-
-These objects define material parameters used by the Poisson and k·p solvers.
-
-Typical parameters may include:
-
-- Band gap.
-- Electron affinity.
-- Relative dielectric constant.
-- Luttinger parameters.
-- Deformation potentials.
-- Effective masses.
-- Spin-orbit splitting.
-- Elastic constants.
-- Kane parameters.
-
-#### Example
-
-```python
-materials_map = {
-    "two_deg_dot": Ge,
-    "barrier_dot": SiGe80,
-    "cap": Al2O3,
-}
-```
-
----
-
-### `savedat`
-
-```python
-logger = savedat("output_log.dat")
-```
-
-Creates a simple log writer.
-
-#### Inputs
-
-| Argument | Type | Description |
-|---|---|---|
-| `filename` | `str` | Name of the output log file. |
-
-#### Purpose
-
-Stores text output such as:
-
-- Mesh information.
-- Material assignments.
-- Solver convergence.
-- Matrix diagnostics.
-- Eigenvalues.
-- Strain and magnetic-field sweep results.
-
----
-
-## 7. Input Mesh Requirements
-
-The `.msh2` file must contain named physical regions and physical boundaries.
-
-Example physical volume or surface names:
-
-```text
-cap
-barrier_dot
-barrier
-two_deg_dot
-two_deg
-relaxed_barrier
-relaxed_dot
-substrate
-top_gate_1
-top_gate_2
-bottom_gate
-plunger_gate
-back_gate
-```
-
-The names in the Python dictionaries must match the names in the mesh exactly.
-
-For example, this will only work if `"two_deg_dot"` exists in the Gmsh file:
-
-```python
-materials_map = {
-    "two_deg_dot": Ge,
-}
-```
-
----
-
-## 8. Output Files
-
-The script produces files such as:
-
-```text
-test_6band_strain_magnetic_field.dat
-ground_state_6band.vtu
-ground_state_6band_strain_-0.0100.vtu
-ground_state_6band_strain_-0.0050.vtu
-ground_state_6band_strain_+0.0000.vtu
-ground_state_6band_strain_+0.0050.vtu
-ground_state_6band_strain_+0.0100.vtu
-```
-
-### `.dat` file
-
-Contains log output from the device, Poisson solver, and k·p solver.
-
-### `.vtu` files
-
-Contain ground-state probability density data for visualization.
-
-To view in ParaView:
-
-```bash
-paraview ground_state_6band.vtu
-```
-
----
-
-## 9. Strain Sweep
-
-The example applies a biaxial strain sweep:
-
-```python
-R = np.array([-0.01, -0.005, 0.0, 0.005, 0.01])
-```
-
-For each strain value:
-
-```python
-ezz = -2 * r * 0.37
-```
-
-Then the tensor is applied to the Ge quantum well region:
-
-```python
-lk_solver.set_region_strain(
-    "two_deg_dot",
-    [
-        [r,   0.0, 0.0],
-        [0.0, r,   0.0],
-        [0.0, 0.0, ezz],
-    ],
-)
-```
-
-This allows the user to study how heavy-hole/light-hole mixing, confinement energy, and ground-state probability density change with strain.
-
----
-
-## 10. Magnetic-Field Sweep
-
-A magnetic field can be applied using:
-
-```python
-B = [0.0, 0.0, 0.2]
-lk_solver.set_BField(B)
-```
-
-where the units are Tesla.
-
-To sweep magnetic field:
-
-```python
-Bz_values = np.linspace(0.0, 1.0, 11)
-
-for Bz in Bz_values:
-    lk_solver.set_BField([0.0, 0.0, Bz])
-    eigenvalues, eigenvectors = lk_solver.solve_LK()
-```
-
----
-
-## 11. Help and Troubleshooting
-
-### Problem: Mesh region name not found
-
-Check that the physical names in the mesh match the dictionary keys.
-
-```python
-materials_map = {
-    "two_deg_dot": Ge,
-}
-```
-
-The name `"two_deg_dot"` must exist in the Gmsh physical groups.
-
----
-
-### Problem: Gate boundary condition is not applied
-
-Check that the gate name exists as a physical surface/facet in the mesh.
-
-```python
-Gate_voltages = {
-    "top_gate_1": 0.0,
-}
-```
-
-The name `"top_gate_1"` must match the mesh boundary label.
-
----
-
-### Problem: Poisson solver does not converge
-
-Try:
-
-- Reducing gate voltages.
-- Checking material parameters.
-- Checking boundary conditions.
-- Making sure ohmic contacts are assigned correctly.
-- Using a better initial guess for `phi`.
-- Checking whether the carrier-density model is numerically stable.
-
----
-
-### Problem: Eigenvalue solver does not converge
-
-Try:
-
-- Reducing the number of requested eigenvalues.
-- Increasing the Krylov subspace size.
-- Checking that the Hamiltonian matrix is Hermitian.
-- Checking that the mass matrix is positive definite.
-- Refining or simplifying the mesh.
-- Checking for invalid material parameters.
-- Checking strain values for unphysical inputs.
-
----
-
-### Problem: Probability density output looks wrong
-
-Check:
-
-- Whether the eigenvector is normalized.
-- Whether the correct submesh is used.
-- Whether the `.vtu` file is opened on the correct mesh.
-- Whether the probability density sums over all band components.
-- Whether the eigenvalue ordering is correct.
-
----
-
-### Problem: Strain has no effect
-
-Check:
-
-- Whether `set_region_strain` is called before `solve_LK`.
-- Whether the region name is correct.
-- Whether the 6-band Hamiltonian includes the Bir-Pikus strain terms.
-- Whether the strain tensor is assigned to the active material region.
-
----
-
-### Problem: Magnetic field has no effect
-
-Check:
-
-- Whether `set_BField` is called before `solve_LK`.
-- Whether the Hamiltonian includes Zeeman and/or orbital magnetic-field terms.
-- Whether the magnetic field is large enough to produce visible splitting.
-- Whether the eigenvalues being compared correspond to the same states.
-
----
-
-## 12. Recommended Script Improvements
-
-For strain sweeps, use unique filenames:
-
-```python
-output_file = f"ground_state_6band_strain_{r:+.4f}.vtu"
-```
-
-Instead of overwriting the same file:
-
-```python
-output_file = "ground_state_6band_mmstrain.vtu"
-```
-
-Also save the eigenvalues in the log file or in a separate `.csv` file:
-
-```python
-np.savetxt("eigenvalues_strain_sweep.txt", eigenvalue_table)
-```
-
----
-
-## 13. Minimal Help Example
-
-```python
-help(Device)
-help(NonlinearPoissonSolver)
-help(LK_hamiltonian_6band)
-```
-
-To inspect available methods:
-
-```python
-dir(device)
-dir(psolver)
-dir(lk_solver)
-```
-
-To check material parameters:
-
-```python
-print(Ge)
-print(SiGe80)
-print(Al2O3)
-```
-
----
-
-## 14. Quick Function Argument Summary
-
-| Function / Class | Argument | Required? | Default | Description |
-|---|---|---:|---:|---|
-| `NonlinearPoissonSolver.__init__` | `device` | yes | — | Full `Device` object containing mesh, materials, region tags, and boundary tags. |
-| `NonlinearPoissonSolver.__init__` | `fermi` | yes | — | Fermi-level/reference energy used in the nonlinear carrier-density model. |
-| `NonlinearPoissonSolver.__init__` | `verbose` | no | `False` | Prints detailed diagnostic output when enabled. |
-| `NonlinearPoissonSolver.__init__` | `log_writer` | no | `None` | Optional logger for writing solver output to a file. |
-| `nonlin_solve` | `gate_voltages` | yes | — | Dictionary mapping gate boundary names to voltages. |
-| `nonlin_solve` | `ohmic_gate_name` | yes | — | Ohmic/reference contact name or list of names. |
-| `nonlin_solve` | `save_file` | no | `True` | Controls whether the Poisson result is saved to disk. |
-| `nonlin_solve` | `output_file` | no | `"poisson.vtu"` | File name for the saved electrostatic potential. |
-| `LK_hamiltonian_6band.__init__` | `device` | yes | — | Full `Device` object used for material and region information. |
-| `LK_hamiltonian_6band.__init__` | `submesh` | yes | — | Active-region mesh for the k·p Hamiltonian. |
-| `LK_hamiltonian_6band.__init__` | `phi` | yes | — | Electrostatic potential defined on `submesh`. |
-| `LK_hamiltonian_6band.__init__` | `log_writer` | no | `None` | Optional logger for Hamiltonian/eigenvalue information. |
-| `LK_hamiltonian_6band.__init__` | `verbose` | no | `False` | Prints Hamiltonian setup and eigensolver diagnostics. |
-| `save_probability_density_ground_state` | `eigenvectors` | yes | — | Eigenvectors returned by `solve_LK()`. |
-| `save_probability_density_ground_state` | `eigenvalues` | yes | — | Eigenvalues returned by `solve_LK()`. |
-| `save_probability_density_ground_state` | `output_file` | no | `"ground_state_probability.vtu"` | Output file for the ground-state probability density. |
-
----
-
-## 15. Full Calculation Checklist
-
-Before running the solver, verify:
-
-- The mesh file exists.
-- Physical region names are correct.
-- Physical gate names are correct.
-- Every semiconductor/dielectric region has a material assigned.
-- Gate voltages are physically reasonable.
-- Ohmic contacts are defined.
-- The submesh regions are included in the full mesh.
-- The Poisson solution is successfully computed.
-- The electrostatic potential is mapped to the submesh.
-- Strain tensors are assigned to the intended regions.
-- Magnetic field is set before solving the Hamiltonian.
-- Output filenames are unique for parameter sweeps.
-
----
-
-## 16. Citation / Acknowledgment Placeholder
-
-If this code is used in a publication or report, cite the relevant k·p, Luttinger-Kohn, Bir-Pikus, finite-element, PETSc/SLEPc, and FEniCSx references.
-
-Suggested placeholder:
-
-```text
-This calculation used a custom finite-element k·p solver based on the Luttinger-Kohn/Bir-Pikus Hamiltonian and nonlinear Poisson electrostatics.
-```
-
----
-
-## 17. Author Notes
-
-This code is intended for research-level simulations of semiconductor quantum-dot heterostructures, especially Ge/SiGe and related strained quantum-well systems.  
-The current example focuses on testing the 6-band model with strain and magnetic field.
