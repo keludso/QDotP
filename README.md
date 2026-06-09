@@ -1,10 +1,14 @@
 # kdotP: FEM k·p / Poisson Solver for Quantum Dot Heterostructures
 
-## 1. Introduction
-
 `kdotP` is a Python-based finite-element simulation package for semiconductor quantum-dot heterostructures. The package is designed to solve the electrostatic potential of realistic gate-defined devices and use this potential as an input to multiband k·p Hamiltonian calculations.
 
-The main workflow begins with a Gmsh-generated device mesh. The mesh is read into a `Device` object, where physical regions are assigned material properties such as Ge, SiGe, or Al₂O₃. The nonlinear Poisson equation is then solved on the full device geometry using gate voltage boundary conditions. After the electrostatic potential is obtained, the active quantum-dot region is extracted as a submesh. The electrostatic potential is mapped onto this submesh and used in the 4-band, 6-band, or 8-band k·p Hamiltonian solver.
+---
+
+## 1. Introduction
+
+`kdotP` provides a simulation workflow for gate-defined semiconductor quantum dots. The main goal of the package is to connect device-scale electrostatics with quantum-mechanical band-structure calculations.
+
+The workflow begins with a Gmsh-generated device mesh. The mesh is read into a `Device` object, where physical regions are assigned material properties such as Ge, SiGe, or Al2O3. The nonlinear Poisson equation is then solved on the full device geometry using gate-voltage boundary conditions. After the electrostatic potential is obtained, the active quantum-dot region is extracted as a submesh. The electrostatic potential is mapped onto this submesh and used in the 4-band, 6-band, or 8-band k·p Hamiltonian solver.
 
 This package is intended for research-level simulations of Ge/SiGe and related strained semiconductor quantum-dot systems. It can be used to study electrostatic confinement, strain effects, magnetic-field dependence, heavy-hole/light-hole mixing, eigenenergies, and quantum-dot probability densities.
 
@@ -12,7 +16,7 @@ This package is intended for research-level simulations of Ge/SiGe and related s
 
 ## 2. Requirements
 
-The code requires a scientific Python environment with finite-element and eigenvalue solver support.
+The code requires a scientific Python environment with finite-element and eigenvalue-solver support.
 
 Typical requirements are:
 
@@ -192,12 +196,12 @@ for r in R:
 ```
 
 ---
-## 4. Description of the Nonlinear Poisson and kdotP Method
+
 ## 4. Description of the Nonlinear Poisson and kdotP Method
 
 The `kdotP` simulation workflow combines electrostatic device modeling with multiband k·p quantum calculations. The calculation starts from a full three-dimensional device mesh that includes the dielectric layers, semiconductor regions, electrostatic gates, ohmic contacts, and the active quantum-well or quantum-dot region.
 
-The nonlinear Poisson solver computes the electrostatic potential over the full device geometry. The solver uses the material properties assigned through the `Device` object and applies voltage boundary conditions to the named gate and contact regions.
+The nonlinear Poisson solver computes the electrostatic potential over the full device geometry. The solver uses the material properties assigned through the `Device` object and applies voltage boundary conditions to the named gate and contact regions. Similar nonlinear Poisson and Schrödinger-based workflows are used in quantum-device simulation tools such as QCAD and QTCAD [4-6].
 
 The nonlinear Poisson equation is written as:
 
@@ -226,16 +230,16 @@ The valence-band basis functions are written in terms of total angular momentum 
 
 |3/2, -3/2> =  (1/sqrt(2)) ( |X - iY> ↓ )
 
-|3/2,  1/2> =  (1/sqrt(6)) ( |X + iY> ↓ ) 
+|3/2,  1/2> =  (1/sqrt(6)) ( |X + iY> ↓ )
                - sqrt(2/3) |Z ↑>
 
-|3/2, -1/2> = -(1/sqrt(6)) ( |X - iY> ↑ ) 
+|3/2, -1/2> = -(1/sqrt(6)) ( |X - iY> ↑ )
                - sqrt(2/3) |Z ↓>
 
-|1/2,  1/2> =  (1/sqrt(3)) ( |X + iY> ↓ ) 
+|1/2,  1/2> =  (1/sqrt(3)) ( |X + iY> ↓ )
                + (1/sqrt(3)) |Z ↑>
 
-|1/2, -1/2> = -(1/sqrt(3)) ( |X - iY> ↑ ) 
+|1/2, -1/2> = -(1/sqrt(3)) ( |X - iY> ↑ )
                + (1/sqrt(3)) |Z ↓>
 ```
 
@@ -252,7 +256,7 @@ Basis = {
 }
 ```
 
-The 4-band Hamiltonian is:
+The 4-band Hamiltonian follows the Luttinger-Kohn and Foreman formulations [1,2]:
 
 ```text
 H_4x4 =
@@ -331,7 +335,7 @@ R = -(sqrt(3)/2) γ_bar k_-^2 + (sqrt(3)/2) μ k_+^2
 
 S_± = sqrt(3) k_± [ (σ - δ)k_z + k_zπ ]
 
-Σ_± = sqrt(3) k_± { 
+Σ_± = sqrt(3) k_± {
         [ (1/3)(σ - δ) + (2/3)π ] k_z
         + k_z [ (2/3)(σ - δ) + (1/3)π ]
       }
@@ -349,7 +353,7 @@ k_+ = k_x + i k_y
 k_- = k_x - i k_y
 ```
 
-Here, `Δ` is the spin-orbit split-off energy, and `ζ(z)` represents the strain-dependent or band-edge contribution included in the model. In the finite-element implementation, the electrostatic potential from the nonlinear Poisson solver enters through the spatially dependent band-edge term.
+Here, `Δ` is the spin-orbit split-off energy, and `ζ(z)` represents the strain-dependent or band-edge contribution included in the model. In the finite-element implementation, the electrostatic potential from the nonlinear Poisson solver enters through the spatially dependent band-edge term. Strain can be included through Bir-Pikus deformation-potential terms [3].
 
 ### 4.3 Eight-Band k·p Hamiltonian
 
@@ -415,7 +419,7 @@ E_g       = band gap
 
 In the finite-element implementation, the k·p Hamiltonian is assembled on the active quantum-dot submesh. The electrostatic potential obtained from the nonlinear Poisson solver enters the Hamiltonian through the position-dependent band-edge potential. This allows gate voltages and device geometry to directly affect the confined quantum states.
 
-The Hamiltonian can also include strain and magnetic-field effects. Strain is included through region-dependent strain tensors and the corresponding Bir-Pikus deformation-potential terms. Magnetic fields can be included through Zeeman terms and, when implemented, orbital magnetic-field coupling.
+The Hamiltonian can also include strain and magnetic-field effects. Strain is included through region-dependent strain tensors and the corresponding Bir-Pikus deformation-potential terms [3]. Magnetic fields can be included through Zeeman terms and, when implemented, orbital magnetic-field coupling.
 
 The resulting eigenvalue problem has the generalized form:
 
@@ -440,20 +444,67 @@ For a multiband model, the physical probability density is obtained by summing o
 
 For the 6-band model, this sum is taken over the six coupled envelope-function components. The probability density can then be saved as a `.vtu` file and visualized in ParaView or PyVista. This allows the user to directly compare the electrostatic potential, confined wavefunction, eigenenergies, strain response, and magnetic-field response of the simulated quantum-dot device.
 
+---
 
 ## 5. Results
 
 The simulation produces electrostatic potential maps, quantum-dot submesh results, eigenenergies, and ground-state probability-density distributions.
-ith quantum-mechanical k·p modeling. This allows the user to study how gate voltage, device geometry, strain, and magnetic field affect quantum-dot confinement and low-energy hole states. The bandstructure plot across the center of the quantum dot shows a band-engineered SiGe/GE heterostructure.
+
+The results demonstrate how `kdotP` links device-scale electrostatics with quantum-mechanical k·p modeling. This allows the user to study how gate voltage, device geometry, strain, and magnetic field affect quantum-dot confinement and low-energy hole states.
+
+The band-structure plot across the center of the quantum dot shows the band-engineered SiGe/Ge heterostructure and the electrostatic confinement potential obtained from the nonlinear Poisson solver.
 
 <img width="1321" height="645" alt="NonLinear_poisson" src="https://github.com/user-attachments/assets/09a4ac73-649f-4873-ab27-8367b74bf8fb" />
 
-
-The wavefunction calculated using the 6-band model across the Y axis showing the quantum dot residing in the Ge structure. 
+The wavefunction calculated using the 6-band model across the Y axis shows the quantum dot localized in the Ge quantum-well region.
 
 <img width="970" height="757" alt="ground_statewavefunction_Yaxis" src="https://github.com/user-attachments/assets/46af5f45-a790-4a22-a1b0-872bfd7359bb" />
 
+The wavefunction calculated using the 6-band model across the Z axis shows the vertical confinement of the ground-state wavefunction.
 
-The wavefunction was calculated using the 6-band across the Z axis.
 <img width="1119" height="770" alt="ground_statewavefunction_Zaxis" src="https://github.com/user-attachments/assets/209b70d1-dc96-4b6e-a534-ff76af7db74b" />
 
+Typical output files include:
+
+```text
+poisson.vtu
+ground_state_6band.vtu
+ground_state_6band_strain_-0.0100.vtu
+ground_state_6band_strain_-0.0050.vtu
+ground_state_6band_strain_+0.0000.vtu
+ground_state_6band_strain_+0.0050.vtu
+ground_state_6band_strain_+0.0100.vtu
+test_6band_strain_magnetic_field.dat
+```
+
+The `poisson.vtu` file contains the electrostatic potential obtained from the nonlinear Poisson solver. This result can be used to visualize the gate-defined confinement potential across the device.
+
+The `ground_state_6band.vtu` and strain-dependent `.vtu` files contain the ground-state probability density from the 6-band k·p Hamiltonian calculation. These files can be opened in ParaView or PyVista to visualize the spatial localization of the quantum-dot wavefunction.
+
+The `.dat` log file stores solver messages, material assignments, convergence information, eigenvalues, strain values, magnetic-field settings, and other diagnostic information.
+
+---
+
+## References
+
+[1] J. M. Luttinger and W. Kohn, “Motion of Electrons and Holes in Perturbed Periodic Fields,” Physical Review, vol. 97, no. 4, pp. 869-883, 1955.
+
+[2] B. A. Foreman, “Effective-mass Hamiltonian and boundary conditions for the valence bands of semiconductor microstructures,” Physical Review B, vol. 48, no. 7, pp. 4964-4967, 1993.
+
+[3] G. L. Bir and G. E. Pikus, Symmetry and Strain-Induced Effects in Semiconductors, Wiley, 1974.
+
+[4] X. Gao, E. Nielsen, R. P. Muller, R. W. Young, A. G. Salinger, N. C. Bishop, M. P. Lilly, and M. S. Carroll, “QCAD Simulation and Optimization of Semiconductor Quantum Dots,” arXiv:1403.7561, 2014.
+
+[5] F. Beaudoin, L. M. T. K. Vandersypen, and collaborators, “Robust technology computer-aided design of gated quantum dots at cryogenic temperature,” Applied Physics Letters, vol. 120, 264001, 2022.
+
+[6] Nanoacademic Technologies Inc., “QTCAD: A Computer-Aided Design Tool for Quantum-Technology Hardware.” Available: https://nanoacademic.com/solutions/qtcad/
+
+[7] Nanoacademic Technologies Inc., “QTCAD Documentation.” Available: https://docs.nanoacademic.com/qtcad/
+
+[8] S. Balay et al., “PETSc Web page.” Available: https://petsc.org/
+
+[9] V. Hernandez, J. E. Roman, and V. Vidal, “SLEPc: A scalable and flexible toolkit for the solution of eigenvalue problems,” ACM Transactions on Mathematical Software, vol. 31, no. 3, pp. 351-362, 2005.
+
+[10] FEniCSx Documentation. Available: https://fenicsproject.org/
+
+[11] C. Geuzaine and J.-F. Remacle, “Gmsh: A three-dimensional finite element mesh generator with built-in pre- and post-processing facilities,” International Journal for Numerical Methods in Engineering, vol. 79, no. 11, pp. 1309-1331, 2009.
