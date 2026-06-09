@@ -464,24 +464,6 @@ The wavefunction calculated using the 6-band model across the Z axis shows the v
 
 <img width="1119" height="770" alt="ground_statewavefunction_Zaxis" src="https://github.com/user-attachments/assets/209b70d1-dc96-4b6e-a534-ff76af7db74b" />
 
-Typical output files include:
-
-```text
-poisson.vtu
-ground_state_6band.vtu
-ground_state_6band_strain_-0.0100.vtu
-ground_state_6band_strain_-0.0050.vtu
-ground_state_6band_strain_+0.0000.vtu
-ground_state_6band_strain_+0.0050.vtu
-ground_state_6band_strain_+0.0100.vtu
-test_6band_strain_magnetic_field.dat
-```
-
-The `poisson.vtu` file contains the electrostatic potential obtained from the nonlinear Poisson solver. This result can be used to visualize the gate-defined confinement potential across the device.
-
-The `ground_state_6band.vtu` and strain-dependent `.vtu` files contain the ground-state probability density from the 6-band k·p Hamiltonian calculation. These files can be opened in ParaView or PyVista to visualize the spatial localization of the quantum-dot wavefunction.
-
-The `.dat` log file stores solver messages, material assignments, convergence information, eigenvalues, strain values, magnetic-field settings, and other diagnostic information.
 
 ---
 
