@@ -193,6 +193,8 @@ for r in R:
 
 ---
 ## 4. Description of the Nonlinear Poisson and kdotP Method
+```markdown
+## 4. Description of the Nonlinear Poisson and kdotP Method
 
 The `kdotP` simulation workflow combines electrostatic device modeling with multiband k·p quantum calculations. The calculation starts from a full three-dimensional device mesh that includes the dielectric layers, semiconductor regions, electrostatic gates, ohmic contacts, and the active quantum-well or quantum-dot region.
 
@@ -200,8 +202,7 @@ The nonlinear Poisson solver computes the electrostatic potential over the full 
 
 $$
 \nabla \cdot \left[ \epsilon(\mathbf{r}) \nabla \phi(\mathbf{r}) \right]
-========================================================================
-
+=
 -\rho(\phi,\mathbf{r})
 $$
 
@@ -211,12 +212,11 @@ After the electrostatic potential is obtained, the active quantum-dot region is 
 
 The k·p method describes the interaction and coupling between semiconductor energy bands. The number of bands included in the Hamiltonian determines the level of physical accuracy and computational cost. The 4-band model includes the heavy-hole and light-hole valence bands. The 6-band model extends this by including the split-off valence bands. The 8-band model further includes conduction-band states and their coupling to the valence bands. Therefore, the appropriate model can be selected based on the level of accuracy required for the simulation.
 
-The valence-band basis functions are written in terms of the total angular momentum states as
+The valence-band basis functions are written in terms of total angular momentum states as follows:
 
 $$
 \left| \frac{3}{2}, \frac{3}{2} \right\rangle
-=============================================
-
+=
 \frac{1}{\sqrt{2}}
 \left(
 |X+iY\rangle \uparrow
@@ -225,8 +225,7 @@ $$
 
 $$
 \left| \frac{3}{2}, -\frac{3}{2} \right\rangle
-==============================================
-
+=
 \frac{1}{\sqrt{2}}
 \left(
 |X-iY\rangle \downarrow
@@ -235,36 +234,31 @@ $$
 
 $$
 \left| \frac{3}{2}, \frac{1}{2} \right\rangle
-=============================================
-
+=
 \frac{1}{\sqrt{6}}
 \left(
 |X+iY\rangle \downarrow
 \right)
--------
-
+-
 \sqrt{\frac{2}{3}}
 |Z\uparrow\rangle
 $$
 
 $$
 \left| \frac{3}{2}, -\frac{1}{2} \right\rangle
-==============================================
-
+=
 -\frac{1}{\sqrt{6}}
 \left(
 |X-iY\rangle \uparrow
 \right)
--------
-
+-
 \sqrt{\frac{2}{3}}
 |Z\downarrow\rangle
 $$
 
 $$
 \left| \frac{1}{2}, \frac{1}{2} \right\rangle
-=============================================
-
+=
 \frac{1}{\sqrt{3}}
 \left(
 |X+iY\rangle \downarrow
@@ -276,8 +270,7 @@ $$
 
 $$
 \left| \frac{1}{2}, -\frac{1}{2} \right\rangle
-==============================================
-
+=
 -\frac{1}{\sqrt{3}}
 \left(
 |X-iY\rangle \uparrow
@@ -289,10 +282,10 @@ $$
 
 ### 4.1 Four-Band k·p Hamiltonian
 
-The 4-band model is written in the heavy-hole and light-hole basis,
+The 4-band model is written in the heavy-hole and light-hole basis:
 
 $$
-\begin{Bmatrix}
+\begin{matrix}
 \left| \frac{3}{2}, \frac{3}{2} \right\rangle,
 &
 \left| \frac{3}{2}, -\frac{3}{2} \right\rangle,
@@ -300,19 +293,18 @@ $$
 \left| \frac{3}{2}, \frac{1}{2} \right\rangle,
 &
 \left| \frac{3}{2}, -\frac{1}{2} \right\rangle
-\end{Bmatrix}
+\end{matrix}
 $$
 
-and is given by
+The Hamiltonian is
 
 $$
 H_{4\times4}
-============
-
+=
 \begin{pmatrix}
-P + Q & 0 & -S_{-} & R \
-0 & P + Q & -R^{\dagger} & -S_{+} \
--S_{-}^{\dagger} & -R & P - Q & C \
+P + Q & 0 & -S_{-} & R \\
+0 & P + Q & -R^{\dagger} & -S_{+} \\
+-S_{-}^{\dagger} & -R & P - Q & C \\
 R^{\dagger} & -S_{+}^{\dagger} & C^{\dagger} & P - Q
 \end{pmatrix}
 $$
@@ -322,7 +314,6 @@ where
 $$
 P
 =
-
 E_V(\mathbf{r})
 +
 \frac{\hbar^2}{2m_e}
@@ -338,14 +329,12 @@ $$
 $$
 Q
 =
-
 \frac{\hbar^2}{2m_e}
 \left(
 \gamma_2 k_x^2
 +
 \gamma_2 k_y^2
---------------
-
+-
 2\gamma_2 k_z^2
 \right)
 $$
@@ -353,7 +342,6 @@ $$
 $$
 R
 =
-
 -\frac{\hbar^2\sqrt{3}}{2m_e}
 k_- \bar{\gamma} k_-
 +
@@ -363,8 +351,7 @@ $$
 
 $$
 S_{\pm}
-=======
-
+=
 \frac{\hbar^2\sqrt{3}}{m_e}
 \left[
 k_{\pm}(\sigma-\delta)k_z
@@ -376,12 +363,10 @@ $$
 $$
 C
 =
-
 \frac{\hbar^2}{m_e}
 \left[
 k_z(\sigma-\delta-\pi)k_-
--------------------------
-
+-
 k_-(\sigma-\delta-\pi)k_z
 \right]
 $$
@@ -390,8 +375,7 @@ The wave-vector and material-dependent parameters are
 
 $$
 k_{\pm}
-=======
-
+=
 k_x
 \pm
 i k_y
@@ -399,8 +383,7 @@ $$
 
 $$
 k_{\parallel}^2
-===============
-
+=
 k_x^2
 +
 k_y^2
@@ -408,8 +391,7 @@ $$
 
 $$
 \bar{\gamma}
-============
-
+=
 \frac{1}{2}
 \left(
 \gamma_3
@@ -420,30 +402,26 @@ $$
 
 $$
 \mu
-===
-
+=
 \frac{1}{2}
 \left(
 \gamma_3
---------
-
+-
 \gamma_2
 \right)
 $$
 
 $$
 \sigma
-======
-
-## \bar{\gamma}
-
+=
+\bar{\gamma}
+-
 \frac{1}{2}\delta
 $$
 
 $$
 \pi
-===
-
+=
 \mu
 +
 \frac{3}{2}\delta
@@ -451,8 +429,7 @@ $$
 
 $$
 \delta
-======
-
+=
 \frac{1}{9}
 \left(
 1
@@ -460,8 +437,7 @@ $$
 \gamma_1
 +
 \gamma_2
---------
-
+-
 3\gamma_3
 \right)
 $$
@@ -472,18 +448,17 @@ The 4-band Hamiltonian is useful when the split-off bands and conduction bands a
 
 The 6-band Hamiltonian extends the 4-band model by including the split-off valence-band states. This model is useful when the split-off band contributes to the low-energy hole states or when stronger band mixing is expected.
 
-The 6-band Hamiltonian is written as
+The 6-band Hamiltonian is
 
 $$
 H_{6\times6}
-============
-
+=
 \begin{pmatrix}
-P + Q & 0 & -S_{-} & R & \frac{1}{\sqrt{2}}S_{-} & \sqrt{2}R \
-0 & P + Q & -R^{\dagger} & -S_{+} & -\sqrt{2}R^{\dagger} & \frac{1}{\sqrt{2}}S_{+} \
--S_{-}^{\dagger} & -R & P - Q & C & \sqrt{2}Q & \sqrt{\frac{3}{2}}\Sigma_{-} \
-R^{\dagger} & -S_{+}^{\dagger} & C^{\dagger} & P - Q & -\sqrt{\frac{3}{2}}\Sigma_{+} & \sqrt{2}Q \
-\frac{1}{\sqrt{2}}S_{-}^{\dagger} & -\sqrt{2}R & \sqrt{2}Q & -\sqrt{\frac{3}{2}}\Sigma_{+}^{\dagger} & P + \Delta & -C \
+P + Q & 0 & -S_{-} & R & \frac{1}{\sqrt{2}}S_{-} & \sqrt{2}R \\
+0 & P + Q & -R^{\dagger} & -S_{+} & -\sqrt{2}R^{\dagger} & \frac{1}{\sqrt{2}}S_{+} \\
+-S_{-}^{\dagger} & -R & P - Q & C & \sqrt{2}Q & \sqrt{\frac{3}{2}}\Sigma_{-} \\
+R^{\dagger} & -S_{+}^{\dagger} & C^{\dagger} & P - Q & -\sqrt{\frac{3}{2}}\Sigma_{+} & \sqrt{2}Q \\
+\frac{1}{\sqrt{2}}S_{-}^{\dagger} & -\sqrt{2}R & \sqrt{2}Q & -\sqrt{\frac{3}{2}}\Sigma_{+}^{\dagger} & P + \Delta & -C \\
 \sqrt{2}R^{\dagger} & \frac{1}{\sqrt{2}}S_{+}^{\dagger} & \sqrt{\frac{3}{2}}\Sigma_{-} & \sqrt{2}Q & -C^{\dagger} & P + \Delta
 \end{pmatrix}
 $$
@@ -493,7 +468,6 @@ where
 $$
 P
 =
-
 E_v(z)
 +
 \frac{1}{2}
@@ -507,14 +481,12 @@ $$
 $$
 Q
 =
-
 \zeta(z)
 +
 \frac{1}{2}
 \left(
 \gamma_2 k_{\parallel}^2
-------------------------
-
+-
 2k_z \gamma_2 k_z
 \right)
 $$
@@ -522,7 +494,6 @@ $$
 $$
 R
 =
-
 -\frac{\sqrt{3}}{2}
 \bar{\gamma}
 k_-^2
@@ -534,8 +505,7 @@ $$
 
 $$
 S_{\pm}
-=======
-
+=
 \sqrt{3}
 k_{\pm}
 \left[
@@ -547,11 +517,10 @@ $$
 
 $$
 \Sigma_{\pm}
-============
-
+=
 \sqrt{3}
 k_{\pm}
-\left{
+\left\{
 \left[
 \frac{1}{3}(\sigma-\delta)
 +
@@ -564,18 +533,16 @@ k_z
 +
 \frac{1}{3}\pi
 \right]
-\right}
+\right\}
 $$
 
 $$
 C
 =
-
 k_-
 \left[
 k_z(\sigma-\delta-\pi)
-----------------------
-
+-
 (\sigma-\delta-\pi)k_z
 \right]
 $$
@@ -584,8 +551,7 @@ with
 
 $$
 k_{\parallel}^2
-===============
-
+=
 k_x^2
 +
 k_y^2
@@ -593,8 +559,7 @@ $$
 
 $$
 k_+
-===
-
+=
 k_x
 +
 i k_y
@@ -602,10 +567,9 @@ $$
 
 $$
 k_-
-===
-
-## k_x
-
+=
+k_x
+-
 i k_y
 $$
 
@@ -615,19 +579,18 @@ Here, $\Delta$ is the spin-orbit split-off energy, and $\zeta(z)$ represents the
 
 The 8-band Hamiltonian includes conduction-band states in addition to the heavy-hole, light-hole, and split-off valence-band states. This model is useful when conduction-valence coupling, narrow-gap effects, or strong confinement effects are important.
 
-The 8-band Hamiltonian is written as
+The 8-band Hamiltonian is
 
 $$
 H_{8\times8}
-============
-
+=
 \begin{pmatrix}
 E_v + E_0 + \dfrac{\hbar^2 k^2}{2m'} & 0 &
 -\dfrac{1}{\sqrt{2}} P_0 k_+ &
 \dfrac{\sqrt{3}}{\sqrt{2}} P_0 k_z &
 0 & 0 &
 -\dfrac{1}{\sqrt{2}} P_0 k_- &
-\sqrt{\dfrac{3}{2}} P_0 k_z \
+\sqrt{\dfrac{3}{2}} P_0 k_z \\
 
 0 & E_v + E_0 + \dfrac{\hbar^2 k^2}{2m'} &
 0 &
@@ -635,27 +598,27 @@ E_v + E_0 + \dfrac{\hbar^2 k^2}{2m'} & 0 &
 -\dfrac{1}{\sqrt{6}} P_0 k_- &
 0 &
 \sqrt{\dfrac{3}{2}} P_0 k_z &
--\dfrac{1}{\sqrt{6}} P_0 k_+ \
+-\dfrac{1}{\sqrt{6}} P_0 k_+ \\
 
 -\dfrac{1}{\sqrt{2}} P_0 k_- & 0 &
 P + Q & 0 & -S_- & R &
-\dfrac{1}{\sqrt{2}} S_- & \sqrt{2}R \
+\dfrac{1}{\sqrt{2}} S_- & \sqrt{2}R \\
 
 \sqrt{\dfrac{3}{2}} P_0 k_z & -\dfrac{1}{\sqrt{6}} P_0 k_+ &
 0 & P + Q & -R^\dagger & -S_+ &
--\sqrt{2}R^\dagger & \dfrac{1}{\sqrt{2}}S_+ \
+-\sqrt{2}R^\dagger & \dfrac{1}{\sqrt{2}}S_+ \\
 
 0 & -\dfrac{1}{\sqrt{6}} P_0 k_- &
 -S_-^\dagger & -R & P - Q & C &
-\sqrt{2}Q & \sqrt{3}\Sigma_+ \
+\sqrt{2}Q & \sqrt{3}\Sigma_+ \\
 
 0 & 0 &
 R^\dagger & -S_+^\dagger & C^\dagger & P - Q &
--\sqrt{3}\Sigma_+ & \sqrt{2}Q \
+-\sqrt{3}\Sigma_+ & \sqrt{2}Q \\
 
 -\dfrac{1}{\sqrt{2}}P_0 k_- & \sqrt{\dfrac{3}{2}}P_0 k_z &
 \dfrac{1}{\sqrt{2}}S_-^\dagger & -\sqrt{2}R & \sqrt{2}Q & -\sqrt{3}\Sigma_+^\dagger &
-P+\Delta & -C \
+P+\Delta & -C \\
 
 \sqrt{\dfrac{3}{2}}P_0 k_z & -\dfrac{1}{\sqrt{6}}P_0 k_+ &
 \sqrt{2}R^\dagger & \dfrac{1}{\sqrt{2}}S_+^\dagger & \sqrt{3}\Sigma_- & \sqrt{2}Q &
@@ -669,8 +632,7 @@ The Kane energy is defined as
 
 $$
 E_P
-===
-
+=
 \frac{2m_0P_0^2}{\hbar^2}
 $$
 
@@ -678,29 +640,26 @@ The Luttinger parameters can be corrected to account for conduction-band couplin
 
 $$
 \gamma_1
-========
-
-## \gamma_1^L
-
+=
+\gamma_1^L
+-
 \frac{E_P}{3E_g+\Delta}
 $$
 
 $$
 \gamma_2
-========
-
-## \gamma_2^L
-
+=
+\gamma_2^L
+-
 \frac{1}{2}
 \frac{E_P}{3E_g+\Delta}
 $$
 
 $$
 \gamma_3
-========
-
-## \gamma_3^L
-
+=
+\gamma_3^L
+-
 \frac{1}{2}
 \frac{E_P}{3E_g+\Delta}
 $$
@@ -717,8 +676,7 @@ The resulting eigenvalue problem has the generalized form
 
 $$
 A\psi
-=====
-
+=
 E B\psi
 $$
 
@@ -728,8 +686,7 @@ For a multiband model, the physical probability density is obtained by summing o
 
 $$
 \rho(\mathbf{r})
-================
-
+=
 \sum_i
 \left|
 \psi_i(\mathbf{r})
@@ -737,6 +694,7 @@ $$
 $$
 
 For the 6-band model, this sum is taken over the six coupled envelope-function components. The probability density can then be saved as a `.vtu` file and visualized in ParaView or PyVista. This allows the user to directly compare the electrostatic potential, confined wavefunction, eigenenergies, strain response, and magnetic-field response of the simulated quantum-dot device.
+```
 
 
 ## 5. Results
