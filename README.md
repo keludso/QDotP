@@ -201,8 +201,9 @@ The nonlinear Poisson solver computes the electrostatic potential over the full 
 
 $$
 \nabla \cdot \left[\epsilon(\mathbf{r}) \nabla \phi(\mathbf{r}) \right]
+$$
 =======================================================================
-
+$$
 -\rho(\phi,\mathbf{r})
 $$
 
@@ -231,7 +232,9 @@ $$
 \frac{1}{\sqrt{6}}
 \left( |X+iY\rangle \downarrow \right)
 --------------------------------------
+$$
 
+$$
 \sqrt{\frac{2}{3}}
 |Z\uparrow\rangle
 $$
@@ -241,7 +244,9 @@ $$
 -\frac{1}{\sqrt{6}}
 \left( |X-iY\rangle \uparrow \right)
 ------------------------------------
+$$
 
+$$
 \sqrt{\frac{2}{3}}
 |Z\downarrow\rangle
 $$
